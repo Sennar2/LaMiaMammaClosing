@@ -1,0 +1,107 @@
+/* src/styles/closing-ui.css */
+.card {
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--panel, #111);
+  color: inherit;
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 1rem;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .5rem;
+}
+
+.pdf-upload input[type="file"] {
+  display: inline-block;
+}
+
+.notice {
+  margin:.75rem 0;
+  padding:.75rem;
+  border:1px dashed #888;
+  border-radius:8px;
+  display:flex;
+  gap:.5rem;
+  align-items:center;
+}
+
+.notice.success {
+  border-color: #3aa97b;
+}
+
+.grid .row {
+  display:grid;
+  grid-template-columns: 220px 1fr auto;
+  align-items:center;
+  gap:.5rem;
+  margin:.4rem 0;
+}
+
+.grid .row input {
+  min-width: 0;
+}
+
+.chip {
+  font-size:.75rem;
+  opacity:.7;
+}
+
+.muted {
+  opacity:.7;
+  font-size: .9rem;
+}
+
+/* Yes/No with comment */
+.ynwc {
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
+}
+
+.ynwc-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+}
+
+.ynwc-label {
+  font-weight: 600;
+}
+
+.ynwc-buttons {
+  display:flex;
+  gap:.5rem;
+}
+
+.ynwc-btn {
+  padding:.45rem .7rem;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  cursor:pointer;
+}
+
+.ynwc-btn.selected {
+  outline: 2px solid #6cf;
+}
+
+.ynwc-comment textarea {
+  width:100%;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  padding: .5rem .6rem;
+  color: inherit;
+}
+
+.ynwc-error, .blocker {
+  color:#ff6b6b;
+  font-size:.9rem;
+  margin-top:.25rem;
+}

@@ -1,0 +1,130 @@
+:root {
+  --bg: #f7f8fb;
+  --text: #0b1020;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --card: #ffffff;
+  --chip: #f3f4f6;
+  --accent: #111827; /* near-black primary */
+  --tab: #f3f4f6;
+  --tab-active: #111827;
+  --tab-active-text: #ffffff;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin:0; padding:0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: var(--bg); color: var(--text); min-height:100vh;
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+header.appbar {
+  position: sticky; top: 0; z-index: 5;
+  background: rgba(255,255,255,0.9); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.appbar-inner { display:flex; align-items:center; justify-content:space-between; gap:16px; padding: 12px 24px; }
+.brand { display:flex; align-items:center; gap:10px; }
+.logo { height:36px; width:auto; object-fit:contain; }
+.title { font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+.badge { background: var(--chip); border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 4px 8px; border-radius: 999px; }
+
+.tabs { display:flex; gap:10px; padding: 14px 0 0; flex-wrap: wrap; }
+.tab { padding:10px 14px; border:1px solid var(--border); border-radius:10px; background: var(--tab); cursor:pointer; font-size:14px; color: var(--text); }
+.tab.active { background: var(--tab-active); border-color: var(--tab-active); color: var(--tab-active-text); }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-top: 16px; box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+.card .header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; letter-spacing: .2px; }
+.card .content { padding: 16px 20px; }
+.card .footer { padding: 12px 20px; border-top: 1px solid var(--border); }
+
+label { display:block; font-size:12px; color: var(--muted); margin-bottom:6px; }
+input, select, textarea {
+  width: 100%; height: 42px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px; outline:none; background:#fff; color: var(--text);
+}
+textarea { min-height: 110px; height:auto; resize: vertical; }
+input:focus, select:focus, textarea:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.08); }
+
+.row { display:grid; gap:14px; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-12 { grid-template-columns: repeat(12, 1fr); }
+
+.btn { border:1px solid var(--border); background:#fff; padding:10px 16px; border-radius:10px; cursor:pointer; color: var(--text); transition: .15s ease; }
+.btn:hover { transform: translateY(-1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color:#fff; }
+.btn.secondary { background: #fff; }
+.btn.ghost { background: transparent; }
+
+.table { width: 100%; border-collapse: collapse; }
+.thead { background:#f9fafb; }
+.th, .td { text-align:left; padding:10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+
+.muted { color: var(--muted); font-size: 14px; }
+.notice { font-size: 12px; color: var(--muted); }
+.alert { font-size:12px; padding:10px; border:1px dashed var(--border); background:#fff; border-radius:10px; }
+
+footer { font-size:12px; color:var(--muted); padding: 16px 0 40px; text-align:center; }
+
+/* --- Typography & spacing tweaks --- */
+
+/* Card titles */
+.card .header {
+  font-size: 22px;        /* bigger */
+  font-weight: 700;       /* bold */
+  line-height: 1.2;
+  margin: 6px 0 18px;     /* more space under title */
+  padding-bottom: 4px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Field labels (all sections, incl. Sales Recap) */
+.card .content label {
+  display: block;
+  font-size: 16px;        /* bigger */
+  font-weight: 600;       /* semibold */
+  letter-spacing: 0.2px;
+  color: #111;            /* darker for contrast */
+  margin-bottom: 8px;     /* space between label and input */
+}
+
+/* Vertical rhythm for rows */
+.card .content .row {
+  margin: 14px 0 22px;    /* more top/bottom space between groups */
+  gap: 10px;
+}
+
+/* Inputs: a little more breathing room */
+.card .content input,
+.card .content select,
+.card .content textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+/* Optional: make section “labels” like Tips Breakdown stand out */
+.card .content .flex > label {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Stronger, clearer form labels + section headers + table headers */
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;           /* <-- bold labels */
+  color: #111827;             /* near-black */
+}
+
+.card .header {
+  font-weight: 800;           /* bolder card titles */
+}
+
+table thead th {
+  font-weight: 700;
+}
+
+button {
+  border-radius: 10px;
+}
