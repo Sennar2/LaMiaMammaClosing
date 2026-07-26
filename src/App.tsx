@@ -30,12 +30,19 @@ type VoidDiscountRow = {
   item: string;
   amount: string;
   reason: string;
+  discountType?: string;
+  // Kept for backwards compatibility with drafts saved by older versions.
   employee: string;
   user?: string;
   confirmed?: boolean;
   // NEW: manager must comment if they select "No"
   managerComment?: string;
 };
+
+function discountTypeFor(row: VoidDiscountRow): string {
+  if (row.type === 'Void') return 'Voids';
+  return (row.discountType || row.employee || 'Other').trim() || 'Other';
+}
 
 type Issues = {
   bar86: boolean;
@@ -195,7 +202,8 @@ async function parseVoidsExcel(file: File): Promise<VoidDiscountRow[]> {
         item,
         amount: String(amt),
         reason,
-        employee: user,
+        discountType: 'Voids',
+        employee: '',
         user,
         confirmed: false,
         managerComment: '',
@@ -263,7 +271,8 @@ async function parseDiscountsExcel(file: File): Promise<VoidDiscountRow[]> {
         item: product,
         amount: String(amountN),
         reason,
-        employee: name,
+        discountType: name || 'Other',
+        employee: '',
         user,
         confirmed: false,
         managerComment: '',
@@ -476,6 +485,49 @@ export default function App() {
     () => (voidsDiscounts || []).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0),
     [voidsDiscounts]
   );
+
+  const discountTotal = useMemo(
+    () =>
+      (voidsDiscounts || [])
+        .filter((row) => row.type === 'Discount')
+        .reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0),
+    [voidsDiscounts]
+  );
+
+  const discountGroups = useMemo(() => {
+    const groups = new Map<string, { name: string; rows: VoidDiscountRow[]; total: number }>();
+    for (const row of voidsDiscounts || []) {
+      if (row.type !== 'Discount') continue;
+      const name = discountTypeFor(row);
+      const group = groups.get(name) || { name, rows: [], total: 0 };
+      group.rows.push(row);
+      group.total += parseFloat(row.amount) || 0;
+      groups.set(name, group);
+    }
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        percentage: discountTotal > 0 ? (group.total / discountTotal) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [voidsDiscounts, discountTotal]);
+
+  const groupedVoidsDiscounts = useMemo(() => {
+    const groups = discountGroups.map((group) => ({
+      name: group.name,
+      rows: group.rows,
+      total: group.total,
+    }));
+    const voidRows = (voidsDiscounts || []).filter((row) => row.type === 'Void');
+    if (voidRows.length) {
+      groups.push({
+        name: 'Voids',
+        rows: voidRows,
+        total: voidRows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0),
+      });
+    }
+    return groups;
+  }, [discountGroups, voidsDiscounts]);
 
   // Gate: must confirm YES or leave comment when NO
   const canProceedVoids = useMemo(() => {
@@ -727,15 +779,27 @@ export default function App() {
 
     section('Voids & Discounts');
     if ((voidsDiscounts || []).length) {
+      if (discountGroups.length) {
+        para('Discount Category Summary', '');
+        table(
+          ['Discount Type', 'Items', 'Total', 'Share'],
+          discountGroups.map((group) => [
+            group.name,
+            String(group.rows.length),
+            currency(group.total),
+            `${group.percentage.toFixed(1)}%`,
+          ])
+        );
+      }
       table(
-        ['#', 'Type', 'Item', 'Amount', 'Reason', 'Employee', 'User', 'Confirmed', 'Manager Comment'],
+        ['#', 'Type', 'Discount Type', 'Item', 'Amount', 'Reason', 'User', 'Confirmed', 'Manager Comment'],
         voidsDiscounts.map((r, i) => [
           String(i + 1),
           r.type || '—',
+          discountTypeFor(r),
           r.item || '—',
           currency(r.amount || 0),
           r.reason || '—',
-          r.employee || '—',
           r.user || '—',
           r.confirmed ? 'Yes' : 'No',
           (r.managerComment || '—'),
@@ -819,8 +883,8 @@ export default function App() {
       Type: r.type,
       Item: r.item,
       Amount: Number(r.amount) || 0,
+      DiscountType: discountTypeFor(r),
       Reason: r.reason,
-      Employee: r.employee,
       User: r.user || '',
       Confirmed: r.confirmed ? 'Yes' : 'No',
       ManagerComment: r.managerComment || '',
@@ -874,6 +938,10 @@ export default function App() {
         '',
         'Voids & Discounts:',
         `• Items: ${(voidsDiscounts || []).length} | Total: ${currency(voidsTotal)}`,
+        ...discountGroups.map(
+          (group) =>
+            `• ${group.name}: ${group.rows.length} items | ${currency(group.total)} | ${group.percentage.toFixed(1)}%`
+        ),
         '',
         'Regards,',
         store.manager || locationName,
@@ -1420,6 +1488,58 @@ export default function App() {
                 </div>
               </div>
 
+              {discountGroups.length > 0 && (
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'end' }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                        Discount breakdown
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 800, marginTop: 3 }}>{currency(discountTotal)}</div>
+                    </div>
+                    <div style={{ fontSize: 13, color: '#6b7280' }}>
+                      {discountGroups.reduce((sum, group) => sum + group.rows.length, 0)} discounted items
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                      gap: 10,
+                      marginTop: 12,
+                    }}
+                  >
+                    {discountGroups.map((group, index) => (
+                      <div
+                        key={group.name}
+                        style={{
+                          border: '1px solid #e5e7eb',
+                          borderTop: `4px solid ${['#111827', '#d97706', '#2563eb', '#059669', '#7c3aed'][index % 5]}`,
+                          borderRadius: 10,
+                          padding: 12,
+                          background: '#fff',
+                        }}
+                      >
+                        <div style={{ fontWeight: 750 }}>{group.name}</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, marginTop: 8 }}>{currency(group.total)}</div>
+                        <div style={{ color: '#6b7280', fontSize: 12, marginTop: 3 }}>
+                          {group.rows.length} items · {group.percentage.toFixed(1)}%
+                        </div>
+                        <div style={{ height: 5, background: '#f3f4f6', borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${Math.max(group.percentage, 1)}%`,
+                              height: '100%',
+                              background: ['#111827', '#d97706', '#2563eb', '#059669', '#7c3aed'][index % 5],
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
                 <thead style={{ background: '#f3f4f6' }}>
                   <tr>
@@ -1436,7 +1556,7 @@ export default function App() {
                       Reason
                     </th>
                     <th style={{ textAlign: 'left', padding: 10, borderBottom: '1px solid #e5e7eb' }}>
-                      Employee
+                      Discount Type
                     </th>
                     <th style={{ textAlign: 'left', padding: 10, borderBottom: '1px solid #e5e7eb' }}>
                       User
@@ -1456,7 +1576,26 @@ export default function App() {
                       </td>
                     </tr>
                   )}
-                  {(voidsDiscounts || []).map((r) => (
+                  {groupedVoidsDiscounts.map((group) => (
+                    <React.Fragment key={group.name}>
+                      <tr>
+                        <td
+                          colSpan={7}
+                          style={{
+                            padding: '12px 10px',
+                            background: '#eef2f7',
+                            borderTop: '2px solid #d1d5db',
+                            borderBottom: '1px solid #d1d5db',
+                            fontWeight: 800,
+                          }}
+                        >
+                          <span>{group.name}</span>
+                          <span style={{ color: '#6b7280', fontWeight: 600, marginLeft: 8 }}>
+                            {group.rows.length} items · {currency(group.total)}
+                          </span>
+                        </td>
+                      </tr>
+                      {group.rows.map((r) => (
                     <React.Fragment key={r.id}>
                       <tr>
                         <td style={{ padding: 10, borderBottom: '1px solid #e5e7eb' }}>{r.type}</td>
@@ -1468,7 +1607,7 @@ export default function App() {
                           {r.reason || '—'}
                         </td>
                         <td style={{ padding: 10, borderBottom: '1px solid #e5e7eb' }}>
-                          {r.employee || '—'}
+                          {discountTypeFor(r)}
                         </td>
                         <td style={{ padding: 10, borderBottom: '1px solid #e5e7eb' }}>
                           {r.user || '—'}
@@ -1521,6 +1660,8 @@ export default function App() {
                           </td>
                         </tr>
                       )}
+                    </React.Fragment>
+                      ))}
                     </React.Fragment>
                   ))}
                 </tbody>
@@ -1869,6 +2010,10 @@ export default function App() {
               '',
               'Voids & Discounts:',
               `• Items: ${(voidsDiscounts || []).length} | Total: ${currency(voidsTotal)}`,
+              ...discountGroups.map(
+                (group) =>
+                  `• ${group.name}: ${group.rows.length} items | ${currency(group.total)} | ${group.percentage.toFixed(1)}%`
+              ),
             ].join('\n');
             await navigator.clipboard.writeText(`Subject: ${subject}\n\n${text}`);
             setSendMsg('Email draft copied to clipboard.');
@@ -1905,4 +2050,3 @@ export default function App() {
     </div>
   );
 }
-
