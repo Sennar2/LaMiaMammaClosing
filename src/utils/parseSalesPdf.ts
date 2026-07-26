@@ -12,7 +12,7 @@ export type SalesFormValues = {
   grossSales?: string; // Takings
   netSales?: string;   // Net + Service Charge
   tax?: string;        // VAT
-  tips?: string;       // Service Charge
+  serviceCharge?: string;
   cash?: string;       // Cash
   card?: string;       // Card
   deliveroo?: string;  // Deliveroo
@@ -77,7 +77,7 @@ function mapTokensToFields(tokens: string[]): Partial<SalesFormValues> | null {
 
   return {
     grossSales: TAKINGS,
-    tips: SERVICE_CHG,
+    serviceCharge: SERVICE_CHG,
     tax: VAT,
     netSales: NET_PLUS_SERVICE,
     cash: CASH,
@@ -111,6 +111,24 @@ function parseFromDayRow(T: string, day?: string): Partial<SalesFormValues> | nu
   return null;
 }
 
+const DAY_ORDER = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+function hasCompletedSales(values: Partial<SalesFormValues> | null): boolean {
+  if (!values) return false;
+  return ["grossSales", "netSales", "cash", "card", "deliveroo", "covers"].some((key) => {
+    const raw = values[key as keyof SalesFormValues];
+    return Math.abs(Number.parseFloat(String(raw ?? "0"))) > 0;
+  });
+}
+
 function parseFromTotalsRow(T: string): Partial<SalesFormValues> | null {
   const m = T.match(/\bTOTALS?\b/i);
   if (!m || m.index == null) return null;
@@ -136,17 +154,36 @@ export async function extractPdfText(file: File): Promise<string> {
   return text;
 }
 
-/** Prefer the requested weekday; fall back to TOTALS. */
+/**
+ * Prefer the requested weekday. If that row is blank (for example, Sunday
+ * morning while Saturday is the last completed service), walk backwards to
+ * the latest completed day before falling back to the weekly total.
+ */
 export function parseSalesFromText(
   text: string,
   opts?: { day?: string }
 ): Partial<SalesFormValues> {
   const T = text.replace(/\s+/g, " ").replace(/[–—]/g, "-");
 
-  const byDay = parseFromDayRow(T, opts?.day);
-  if (byDay) {
-    try { console.log("[Sales PDF] day mapping:", opts?.day, byDay); } catch {}
-    return byDay;
+  const requestedDay = opts?.day?.toLowerCase();
+  const requestedIndex = requestedDay
+    ? DAY_ORDER.indexOf(requestedDay as (typeof DAY_ORDER)[number])
+    : -1;
+
+  if (requestedIndex >= 0) {
+    for (let index = requestedIndex; index >= 0; index -= 1) {
+      const candidateDay = DAY_ORDER[index];
+      const byDay = parseFromDayRow(T, candidateDay);
+      if (!hasCompletedSales(byDay)) continue;
+      try {
+        console.log(
+          "[Sales PDF] day mapping:",
+          candidateDay,
+          candidateDay === requestedDay ? byDay : { ...byDay, fallbackFrom: requestedDay }
+        );
+      } catch {}
+      return byDay || {};
+    }
   }
 
   const totals = parseFromTotalsRow(T);
@@ -198,7 +235,7 @@ export function parseTotalsFromText(text: string) {
 
   return {
     grossSales: TAKINGS,
-    tips: SERVICE_CHG,
+    serviceCharge: SERVICE_CHG,
     netSales: NET_PLUS_SERVICE,
     cash: CASH,
     card: CARD,

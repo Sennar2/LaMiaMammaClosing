@@ -12,7 +12,7 @@ const FIELD_LIST: Array<keyof SalesFormValues> = [
   "grossSales",
   "netSales",
   "tax",
-  "tips",
+  "serviceCharge",
   "cash",
   "card",
   "discounts",
@@ -135,8 +135,8 @@ function labelFor(k: keyof SalesFormValues) {
       return "Net Sales";
     case "tax":
       return "VAT/Tax";
-    case "tips":
-      return "Tips";
+    case "serviceCharge":
+      return "Service Charge";
     case "cash":
       return "Cash";
     case "card":
@@ -149,4 +149,3 @@ function labelFor(k: keyof SalesFormValues) {
       return String(k);
   }
 }
-
