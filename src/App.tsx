@@ -304,6 +304,7 @@ export default function App() {
     covers: '',
     deliveroo: '',
     notes: '',
+    serviceCharge: '',
     tipsTotal: '',
     tipsRows: [] as TipRow[],
   });
@@ -317,7 +318,7 @@ export default function App() {
   const [parsedSales, setParsedSales] = useState<Partial<{
     grossSales: string;
     netSales: string;
-    tips: string;
+    serviceCharge: string;
     cash: string;
     card: string;
     deliveroo: string;
@@ -458,7 +459,7 @@ export default function App() {
    ================================================ */
 
   /* ===== Derived totals ===== */
-  const tipsTotalCalc = useMemo(() => {
+  const manualTipsCalc = useMemo(() => {
     const rowsSum = (sales.tipsRows || []).reduce(
       (s, r) => s + (parseFloat(r.amount) || 0),
       0
@@ -466,6 +467,10 @@ export default function App() {
     const manual = parseFloat(String(sales.tipsTotal).replace(/[^0-9.-]/g, '')) || 0;
     return manual || rowsSum;
   }, [sales.tipsRows, sales.tipsTotal]);
+
+  const serviceChargeCalc =
+    parseFloat(String(sales.serviceCharge || '').replace(/[^0-9.-]/g, '')) || 0;
+  const tipsTotalCalc = serviceChargeCalc + manualTipsCalc;
 
   const voidsTotal = useMemo(
     () => (voidsDiscounts || []).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0),
@@ -502,7 +507,7 @@ export default function App() {
         ['netSales', 'netServ'],
         ['cash', 'cash'],
         ['card', 'card'],
-        ['tips', 'tipsTotal'],
+        ['serviceCharge', 'serviceCharge'],
         ['deliveroo', 'deliveroo'],
         ['covers', 'covers'],
       ];
@@ -513,6 +518,22 @@ export default function App() {
         if (mode === 'overwrite' || !prev[to] || !wasEdited) {
           (next as any)[to] = String(incoming);
         }
+      }
+
+      // Migrate drafts created by the previous version, which stored an
+      // auto-filled service charge in the manual tips field.
+      const incomingServiceCharge = String(payload.serviceCharge || '');
+      const previousServiceCharge = String(prev.serviceCharge || '');
+      const previousTips = String(prev.tipsTotal || '');
+      const normaliseAmount = (value: string) =>
+        Number.parseFloat(value.replace(/[^0-9.-]/g, '')) || 0;
+      if (
+        incomingServiceCharge &&
+        !previousServiceCharge &&
+        !salesEdited.tipsTotal &&
+        normaliseAmount(previousTips) === normaliseAmount(incomingServiceCharge)
+      ) {
+        next.tipsTotal = '';
       }
       return next;
     });
@@ -535,7 +556,7 @@ export default function App() {
       const keep = (p: any) => ({
         grossSales: p?.grossSales,
         netSales:   p?.netSales,
-        tips:       p?.tips,
+        serviceCharge: p?.serviceCharge,
         cash:       p?.cash,
         card:       p?.card,
         deliveroo:  p?.deliveroo,
@@ -692,10 +713,9 @@ export default function App() {
     kv('Card', currency(sales.card));
     kv('Covers', String(sales.covers || 0));
     kv('Deliveroo', currency(sales.deliveroo));
-    kv('Tips (Total)', currency(
-      (sales.tipsTotal && parseFloat(String(sales.tipsTotal))) ||
-        (sales.tipsRows || []).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
-    ));
+    kv('Service Charge', currency(serviceChargeCalc));
+    kv('Additional Tips', currency(manualTipsCalc));
+    kv('Service Charge + Tips', currency(tipsTotalCalc));
     if ((sales.tipsRows || []).length) {
       para('Tips Breakdown', '');
       table(
@@ -850,7 +870,7 @@ export default function App() {
         'Sales Recap:',
         `• Gross: ${currency(sales.grossSales)} | Net+Serv: ${currency(sales.netServ)}`,
         `• Cash: ${currency(sales.cash)} | Card: ${currency(sales.card)} | Covers: ${sales.covers || 0} | Deliveroo: ${currency(sales.deliveroo)}`,
-        `• Tips: ${currency(tipsTotalCalc)}`,
+        `• Service Charge: ${currency(serviceChargeCalc)} | Additional Tips: ${currency(manualTipsCalc)} | Total: ${currency(tipsTotalCalc)}`,
         '',
         'Voids & Discounts:',
         `• Items: ${(voidsDiscounts || []).length} | Total: ${currency(voidsTotal)}`,
@@ -1099,7 +1119,7 @@ export default function App() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                           <div><b>Gross</b><div>{parsedSales?.grossSales ?? '—'}</div></div>
                           <div><b>Net + Serv</b><div>{parsedSales?.netSales ?? '—'}</div></div>
-                          <div><b>Tips / SC</b><div>{parsedSales?.tips ?? '—'}</div></div>
+                          <div><b>Service Charge</b><div>{parsedSales?.serviceCharge ?? '—'}</div></div>
                           <div><b>Cash</b><div>{parsedSales?.cash ?? '—'}</div></div>
                           <div><b>Card</b><div>{parsedSales?.card ?? '—'}</div></div>
                           <div><b>Deliveroo</b><div>{parsedSales?.deliveroo ?? '—'}</div></div>
@@ -1109,7 +1129,7 @@ export default function App() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                           <div><b>Gross (Wk)</b><div>{parsedWeek?.grossSales ?? '—'}</div></div>
                           <div><b>Net + Serv (Wk)</b><div>{parsedWeek?.netSales ?? '—'}</div></div>
-                          <div><b>Tips / SC (Wk)</b><div>{parsedWeek?.tips ?? '—'}</div></div>
+                          <div><b>Service Charge (Wk)</b><div>{parsedWeek?.serviceCharge ?? '—'}</div></div>
                           <div><b>Cash (Wk)</b><div>{parsedWeek?.cash ?? '—'}</div></div>
                           <div><b>Card (Wk)</b><div>{parsedWeek?.card ?? '—'}</div></div>
                           <div><b>Deliveroo (Wk)</b><div>{parsedWeek?.deliveroo ?? '—'}</div></div>
@@ -1191,9 +1211,18 @@ export default function App() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: 14, marginTop: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginTop: 14 }}>
                 <div>
-                  <label>Tips (Total) — optional</label>
+                  <label>Service Charge (from sales report)</label>
+                  <input
+                    inputMode="decimal"
+                    value={sales.serviceCharge || ''}
+                    readOnly
+                    style={{ width: '100%', height: 42, background: '#f3f4f6' }}
+                  />
+                </div>
+                <div>
+                  <label>Additional Tips — optional</label>
                   <input
                     inputMode="decimal"
                     value={sales.tipsTotal}
@@ -1201,7 +1230,7 @@ export default function App() {
                       setSales({ ...sales, tipsTotal: e.target.value });
                       markEdited('tipsTotal');
                     }}
-                    placeholder="If blank, we sum the breakdown below"
+                    placeholder="If blank, we sum the waiter breakdown"
                     style={{ width: '100%', height: 42 }}
                   />
                 </div>
@@ -1290,7 +1319,8 @@ export default function App() {
                 ))}
 
                 <div style={{ fontSize: 12, color: '#6b7280' }}>
-                  Calculated Tips Total: <b>{currency(tipsTotalCalc)}</b>
+                  Additional Tips: <b>{currency(manualTipsCalc)}</b>
+                  {' · '}Service Charge + Tips: <b>{currency(tipsTotalCalc)}</b>
                 </div>
               </div>
 
@@ -1835,7 +1865,7 @@ export default function App() {
               'Sales Recap:',
               `• Gross: ${currency(sales.grossSales)} | Net+Serv: ${currency(sales.netServ)}`,
               `• Cash: ${currency(sales.cash)} | Card: ${currency(sales.card)} | Covers: ${sales.covers || 0} | Deliveroo: ${currency(sales.deliveroo)}`,
-              `• Tips: ${currency(tipsTotalCalc)}`,
+              `• Service Charge: ${currency(serviceChargeCalc)} | Additional Tips: ${currency(manualTipsCalc)} | Total: ${currency(tipsTotalCalc)}`,
               '',
               'Voids & Discounts:',
               `• Items: ${(voidsDiscounts || []).length} | Total: ${currency(voidsTotal)}`,
@@ -1875,5 +1905,4 @@ export default function App() {
     </div>
   );
 }
-
 
